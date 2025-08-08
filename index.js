@@ -45,9 +45,9 @@ app.get('/', (req, res) => {
   res.send('hello world, Phutiphachr');
 });
 
-app.listen(port, () => {
-    console.log(`Example app listening at http://localhost:${port}`)
-})
+// app.listen(port, () => {
+//     console.log(`Example app listening at http://localhost:${port}`)
+// })
 app.post('/', function (req, res) {
     res.send('Got a POST request')
 })
