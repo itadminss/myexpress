@@ -29,7 +29,7 @@ function handleEvent(event) {
     if (event.type !== 'message' || event.message.type !== 'text') {
         return Promise.resolve(null);
     }
-    event.message.text =  "บอทตอบ :"+event.message.text 
+    event.message.text =  "บอท บ๊อททท ตอบว่า :"+event.message.text 
     //console.log(event);
     //console.log(event.message);
     //console.log(event.message.text);
