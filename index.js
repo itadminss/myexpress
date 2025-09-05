@@ -121,48 +121,99 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
 });
 
 
-async function handleEvent1(event) {
+ async function handleEvent1(event) {
   try {
-    if (event.type !== "message" || event.message.type !== "text") {
-      return Promise.resolve(null);
-    }
+    const userId = event.source.userId;
+    const message = event.message;
 
-    const userMessage = event.message.text;
-    const replyContent = await generateCreativeReply(userMessage);
+ 
+    if (message.type === "text") {
+      const userMessage = message.text;
+      const replyContent = await generateCreativeReply(userMessage);
 
-    const { error } = await supabase.from("messages").insert({
-      user_id: event.source.userId,
-      message_id: event.message.id,
-      type: event.message.type,
-      content: userMessage,
-      reply_token: event.replyToken,
-      reply_content: replyContent,
-    });
+      await supabase.from("messages").insert({
+        user_id: userId,
+        message_id: message.id,
+        type: message.type,
+        content: userMessage,
+        reply_token: event.replyToken,
+        reply_content: replyContent,
+      });
 
-    if (error) {
-      console.error("❌ Supabase insert error:", error);
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "เกิดข้อผิดพลาดในการบันทึกข้อความ",
+        text: replyContent,
       });
     }
 
+   
+    if (message.type === "image") {
+    
+      const stream = await client.getMessageContent(message.id);
+      const chunks = [];
+      for await (let chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      const buffer = Buffer.concat(chunks);
+      const base64Image = buffer.toString("base64");
+
+      const responseText = await analyzeImageWithGemini(base64Image);
+
+      // บันทึกลง Supabase
+      await supabase.from("messages").insert({
+        user_id: userId,
+        message_id: message.id,
+        type: message.type,
+        content: "Image uploaded",
+        reply_token: event.replyToken,
+        reply_content: responseText,
+      });
+ 
+      return client.replyMessage(event.replyToken, [
+        {
+          type: "text",
+          text: "📸 รับรูปภาพเรียบร้อยแล้ว!",
+        },
+        {
+          type: "text",
+          text: responseText,
+        },
+      ]);
+    }
+
+  
     return client.replyMessage(event.replyToken, {
       type: "text",
-      text: replyContent,
+      text: "ขออภัย ยังไม่รองรับข้อความประเภทนี้ 😅",
     });
 
   } catch (err) {
     console.error("❌ handleEvent1 error:", err);
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "เกิดข้อผิดพลาดบางอย่าง 😢 ลองใหม่อีกครั้งนะ",
+    });
+  }
+}
 
-    if (event?.replyToken) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "เกิดข้อผิดพลาดบางอย่าง 😢 ลองใหม่อีกครั้งนะ",
-      });
-    }
+async function analyzeImageWithGemini(base64Image) {
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-pro-vision"
+    });
 
-    return Promise.resolve(null);
+    const result = await model.generateContent([
+      { inlineData: { data: base64Image, mimeType: "image/jpeg" } },
+      "วิเคราะห์ว่ารูปภาพนี้คือสัตว์ชนิดใด พร้อมคำอธิบายสั้นๆ เป็นภาษาไทย"
+    ]);
+
+    const response = await result.response;
+    const text = response.text();
+    return text;
+  } catch (error) {
+    console.error("❌ analyzeImageWithGemini error:", error);
+    return "ขออภัย วิเคราะห์ภาพไม่สำเร็จ 😔";
   }
 }
 
