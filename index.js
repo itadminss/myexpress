@@ -241,26 +241,33 @@ async function handleEvent1(event) {
   }
 }
 
-
 async function analyzeImageWithGemini(base64Image) {
   try {
+    console.log("🔍 เรียก Gemini Vision...");
+
     const model = genAI.getGenerativeModel({
       model: "gemini-pro-vision",
     });
 
     const result = await model.generateContent([
-      { inlineData: { data: base64Image, mimeType: "image/jpeg" } },
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: "image/jpeg", // เปลี่ยนเป็น "image/png" ถ้าใช้ png
+        },
+      },
       "ภาพนี้คือสัตว์ชนิดใด? ตอบเป็นชื่อสัตว์ภาษาไทย พร้อมคำอธิบายสั้น ๆ",
     ]);
 
     const response = await result.response;
-    return response.text();
+    const text = response.text();
+    console.log("📥 Gemini Vision ตอบ:", text);
+    return text;
   } catch (error) {
-    console.error("❌ Gemini vision error:", error);
+    console.error("❌ analyzeImageWithGemini error:", error);
     return "วิเคราะห์ภาพไม่สำเร็จ 😢 ลองใหม่อีกครั้งนะ";
   }
 }
-
 
 
 
