@@ -121,50 +121,7 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
 });
 
 
-// async function handleEvent1(event) {
-//   try {
-//     if (event.type !== "message" || event.message.type !== "text") {
-//       return Promise.resolve(null);
-//     }
-
-//     const userMessage = event.message.text;
-//     const replyContent = await generateCreativeReply(userMessage);
-
-//     const { error } = await supabase.from("messages").insert({
-//       user_id: event.source.userId,
-//       message_id: event.message.id,
-//       type: event.message.type,
-//       content: userMessage,
-//       reply_token: event.replyToken,
-//       reply_content: replyContent,
-//     });
-
-//     if (error) {
-//       console.error("❌ Supabase insert error:", error);
-//       return client.replyMessage(event.replyToken, {
-//         type: "text",
-//         text: "เกิดข้อผิดพลาดในการบันทึกข้อความ",
-//       });
-//     }
-
-//     return client.replyMessage(event.replyToken, {
-//       type: "text",
-//       text: replyContent,
-//     });
-
-//   } catch (err) {
-//     console.error("❌ handleEvent1 error:", err);
-
-//     if (event?.replyToken) {
-//       return client.replyMessage(event.replyToken, {
-//         type: "text",
-//         text: "เกิดข้อผิดพลาดบางอย่าง 😢 ลองใหม่อีกครั้งนะ",
-//       });
-//     }
-
-//     return Promise.resolve(null);
-//   }
-// }
+ 
 
 async function handleEvent1(event) {
   try {
