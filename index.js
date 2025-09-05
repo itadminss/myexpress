@@ -121,50 +121,146 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
 });
 
 
+// async function handleEvent1(event) {
+//   try {
+//     if (event.type !== "message" || event.message.type !== "text") {
+//       return Promise.resolve(null);
+//     }
+
+//     const userMessage = event.message.text;
+//     const replyContent = await generateCreativeReply(userMessage);
+
+//     const { error } = await supabase.from("messages").insert({
+//       user_id: event.source.userId,
+//       message_id: event.message.id,
+//       type: event.message.type,
+//       content: userMessage,
+//       reply_token: event.replyToken,
+//       reply_content: replyContent,
+//     });
+
+//     if (error) {
+//       console.error("❌ Supabase insert error:", error);
+//       return client.replyMessage(event.replyToken, {
+//         type: "text",
+//         text: "เกิดข้อผิดพลาดในการบันทึกข้อความ",
+//       });
+//     }
+
+//     return client.replyMessage(event.replyToken, {
+//       type: "text",
+//       text: replyContent,
+//     });
+
+//   } catch (err) {
+//     console.error("❌ handleEvent1 error:", err);
+
+//     if (event?.replyToken) {
+//       return client.replyMessage(event.replyToken, {
+//         type: "text",
+//         text: "เกิดข้อผิดพลาดบางอย่าง 😢 ลองใหม่อีกครั้งนะ",
+//       });
+//     }
+
+//     return Promise.resolve(null);
+//   }
+// }
+
 async function handleEvent1(event) {
   try {
-    if (event.type !== "message" || event.message.type !== "text") {
-      return Promise.resolve(null);
-    }
+    const userId = event.source.userId;
+    const message = event.message;
 
-    const userMessage = event.message.text;
-    const replyContent = await generateCreativeReply(userMessage);
+    // ✅ 1. ข้อความ (Text)
+    if (message.type === "text") {
+      const userMessage = message.text;
+      const replyContent = await generateCreativeReply(userMessage);
 
-    const { error } = await supabase.from("messages").insert({
-      user_id: event.source.userId,
-      message_id: event.message.id,
-      type: event.message.type,
-      content: userMessage,
-      reply_token: event.replyToken,
-      reply_content: replyContent,
-    });
+      await supabase.from("messages").insert({
+        user_id: userId,
+        message_id: message.id,
+        type: message.type,
+        content: userMessage,
+        reply_token: event.replyToken,
+        reply_content: replyContent,
+      });
 
-    if (error) {
-      console.error("❌ Supabase insert error:", error);
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "เกิดข้อผิดพลาดในการบันทึกข้อความ",
+        text: replyContent,
       });
     }
 
+    // ✅ 2. รูปภาพ (Image)
+    if (message.type === "image") {
+      const stream = await client.getMessageContent(message.id);
+      const chunks = [];
+
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      const buffer = Buffer.concat(chunks);
+      const base64Image = buffer.toString("base64");
+
+      const analysisText = await analyzeImageWithGemini(base64Image);
+
+      await supabase.from("messages").insert({
+        user_id: userId,
+        message_id: message.id,
+        type: message.type,
+        content: "image_uploaded",
+        reply_token: event.replyToken,
+        reply_content: analysisText,
+      });
+
+      return client.replyMessage(event.replyToken, [
+        {
+          type: "text",
+          text: "📸 รับรูปภาพเรียบร้อยแล้ว!",
+        },
+        {
+          type: "text",
+          text: analysisText,
+        },
+      ]);
+    }
+
+    // ❌ กรณีอื่นๆ ที่ไม่รองรับ
     return client.replyMessage(event.replyToken, {
       type: "text",
-      text: replyContent,
+      text: "ขออภัย ยังไม่รองรับข้อความประเภทนี้ 😅",
     });
 
   } catch (err) {
     console.error("❌ handleEvent1 error:", err);
-
-    if (event?.replyToken) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "เกิดข้อผิดพลาดบางอย่าง 😢 ลองใหม่อีกครั้งนะ",
-      });
-    }
-
-    return Promise.resolve(null);
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "เกิดข้อผิดพลาดบางอย่าง 😢 ลองใหม่อีกครั้งนะ",
+    });
   }
 }
+
+
+async function analyzeImageWithGemini(base64Image) {
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-pro-vision",
+    });
+
+    const result = await model.generateContent([
+      { inlineData: { data: base64Image, mimeType: "image/jpeg" } },
+      "ภาพนี้คือสัตว์ชนิดใด? ตอบเป็นชื่อสัตว์ภาษาไทย พร้อมคำอธิบายสั้น ๆ",
+    ]);
+
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error("❌ Gemini vision error:", error);
+    return "วิเคราะห์ภาพไม่สำเร็จ 😢 ลองใหม่อีกครั้งนะ";
+  }
+}
+
 
 
 
