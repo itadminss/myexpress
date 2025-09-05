@@ -246,7 +246,7 @@ async function analyzeImageWithGemini(base64Image) {
     console.log("🔍 เรียก Gemini Vision...");
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-pro-vision",
+      model: "gemini-2.0-flash-lite",
     });
 
     const result = await model.generateContent([
