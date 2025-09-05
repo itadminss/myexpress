@@ -271,15 +271,12 @@ async function analyzeImageWithGemini(base64Image) {
 
 
 
-// Respond with Hello World! on the homepage:
+ 
 app.get('/', (req, res) => {
   res.send('hello world, Phutiphachr');
 });
 
-// app.listen(port, () => {
-//     console.log(`Example app listening at http://localhost:${port}`)
-// })
-app.post('/', function (req, res) {
+ t('/', function (req, res) {
     res.send('Got a POST request')
 })
 // Respond to a PUT request to the /user route:
